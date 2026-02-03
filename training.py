@@ -66,7 +66,8 @@ history = model.fit(
     validation_data=test_data
 )
 
-model.save("fruit_model.keras")
+model.save("fruit_model.h5")
 
 print("Training Accuracy:", history.history["accuracy"][-1] * 100)
 print("Testing Accuracy:", history.history["val_accuracy"][-1] * 100)
+
