@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fruit Image Prediction</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+            text-align: center;
+        }
+        .box {
+            background: white;
+            padding: 20px;
+            width: 400px;
+            margin: auto;
+            margin-top: 50px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px gray;
+        }
+        img {
+            width: 200px;
+            margin-top: 10px;
+            border-radius: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2> Image Classifier </h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="image" required><br><br>
+        <button type="submit">Predict</button>
+    </form>
+
+    {% if prediction %}
+        <h3>Prediction: {{ prediction }}</h3>
+
+        {% if confidence %}
+            <h4>Confidence: {{ confidence }} %</h4>
+        {% else %}
+            <h4 style="color:red;">Low confidence – image not recognized</h4>
+        {% endif %}
+
+        <img src="{{ img_path }}">
+    {% endif %}
+</div>
+
+</body>
+</html>
