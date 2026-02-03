@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 
-model = load_model("fruit_model.keras")
+model = load_model("fruit_model.h5")
 
 class_names = [
     "Angelina Jolie",
@@ -71,3 +71,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
