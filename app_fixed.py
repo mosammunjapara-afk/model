@@ -1,67 +1,64 @@
 from flask import Flask, render_template, request
-from tensorflow.keras.models import load_model
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.preprocessing import image
 import numpy as np
 import os
 
 app = Flask(__name__)
 
-# ==================================================
-# SOLUTION 1: Google Drive (Recommended for large files)
-# ==================================================
-# Replace YOUR_FILE_ID with your actual Google Drive file ID
-# Instructions below in DEPLOYMENT_GUIDE.md
-
 MODEL_PATH = "fruit_model.keras"
 model = None
 
-def download_model_from_gdrive():
-    """Download model from Google Drive if not present"""
-    GOOGLE_DRIVE_FILE_ID = os.environ.get("GDRIVE_FILE_ID", "YOUR_FILE_ID")
-    
-    if GOOGLE_DRIVE_FILE_ID == "YOUR_FILE_ID":
-        print("⚠️ WARNING: Google Drive File ID not set!")
-        print("Set environment variable GDRIVE_FILE_ID in Render dashboard")
-        return False
-    
-    if os.path.exists(MODEL_PATH):
-        print("✅ Model file already exists")
-        return True
-    
-    try:
-        import gdown
-        MODEL_URL = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
-        print(f"📥 Downloading model from Google Drive...")
-        gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
-        print("✅ Model downloaded successfully!")
-        return True
-    except Exception as e:
-        print(f"❌ Error downloading model: {e}")
-        return False
-
 def load_model_safe():
-    """Load model with error handling"""
+    """Load model with compatibility fixes"""
     global model
     
-    # Try to download if not exists
     if not os.path.exists(MODEL_PATH):
-        print("Model file not found, attempting download...")
-        download_model_from_gdrive()
-    
-    # Try to load model
-    if os.path.exists(MODEL_PATH):
-        try:
-            model = load_model(MODEL_PATH)
-            print("✅ Model loaded successfully!")
-            return True
-        except Exception as e:
-            print(f"❌ Error loading model: {e}")
-            return False
-    else:
-        print("❌ Model file not found and download failed")
+        print(f"❌ Model file not found: {MODEL_PATH}")
         return False
+    
+    try:
+        # Try loading with compile=False to avoid optimizer issues
+        print("📥 Attempting to load model...")
+        model = keras.models.load_model(MODEL_PATH, compile=False)
+        
+        # Recompile if needed
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        print("✅ Model loaded and compiled successfully!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error loading model: {e}")
+        print("💡 Trying alternative loading method...")
+        
+        try:
+            # Alternative: Load with custom objects if needed
+            model = keras.models.load_model(
+                MODEL_PATH,
+                compile=False,
+                safe_mode=False
+            )
+            
+            model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+            
+            print("✅ Model loaded with alternative method!")
+            return True
+            
+        except Exception as e2:
+            print(f"❌ Alternative method also failed: {e2}")
+            return False
 
-# Load model on startup (won't crash if fails)
+# Load model on startup
 load_model_safe()
 
 class_names = [
@@ -98,7 +95,7 @@ def index():
 
     if request.method == "POST":
         if model is None:
-            error = "⚠️ Model not loaded. Please contact administrator."
+            error = "⚠️ Model not loaded. Please check server logs."
             return render_template(
                 "index.html",
                 prediction=None,
@@ -118,7 +115,7 @@ def index():
                 img_array = image.img_to_array(img) / 255.0
                 img_array = np.expand_dims(img_array, axis=0)
 
-                preds = model.predict(img_array)
+                preds = model.predict(img_array, verbose=0)
                 max_prob = float(np.max(preds)) * 100
                 class_index = np.argmax(preds)
 
