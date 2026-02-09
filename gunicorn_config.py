@@ -5,12 +5,12 @@ import os
 bind = "0.0.0.0:" + str(os.environ.get("PORT", 10000))
 
 # Worker processes
-workers = 1  # Keep it 1 for low memory
+workers = 1
 worker_class = 'sync'
 threads = 1
 
 # Timeouts
-timeout = 300  # 5 minutes for model inference
+timeout = 300
 graceful_timeout = 300
 keepalive = 5
 
@@ -27,7 +27,7 @@ errorlog = '-'
 loglevel = 'info'
 
 # Worker memory limits
-worker_tmp_dir = '/dev/shm'  # Use shared memory for better performance
+worker_tmp_dir = '/dev/shm'
 
 def on_starting(server):
     print("🚀 Gunicorn server is starting...")
@@ -43,18 +43,3 @@ def worker_int(worker):
 
 def worker_abort(worker):
     print(f"❌ Worker received SIGABRT signal: {worker.pid}")
-```
-
-## **3. `Procfile` (New File)**
-```
-web: gunicorn --config gunicorn_config.py app:app
-```
-
-## **4. `requirements.txt` (Updated)**
-```
-Flask==3.0.0
-tensorflow==2.16.1
-numpy==1.26.3
-Pillow==10.2.0
-gunicorn==21.2.0
-h5py==3.10.0
