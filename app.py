@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 MODEL_PATH = "fruit_model.keras"
 model = None
-IMG_SIZE = 160  # Changed from 224 - IMPORTANT!
+IMG_SIZE = 224  # ✅ MUST BE 224 (matches training!)
 
 def load_model_safe():
     """Load model with compatibility fixes"""
@@ -91,11 +91,11 @@ def index():
                 file.save(img_path)
                 print("💾 File saved")
 
-                print("🖼️ Loading and preprocessing...")
+                print(f"🖼️ Loading image at size {IMG_SIZE}x{IMG_SIZE}...")
                 img = image.load_img(img_path, target_size=(IMG_SIZE, IMG_SIZE))
                 img_array = image.img_to_array(img) / 255.0
                 img_array = np.expand_dims(img_array, axis=0).astype(np.float32)
-                print("✅ Image ready")
+                print(f"✅ Image shape: {img_array.shape}")
 
                 print("🔍 Predicting...")
                 import time
