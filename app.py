@@ -4,6 +4,11 @@ from tensorflow import keras
 from tensorflow.keras.preprocessing import image
 import numpy as np
 import os
+import gc
+
+# Configure TensorFlow for memory efficiency
+tf.config.set_soft_device_placement(True)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce TF logging
 
 app = Flask(__name__)
 
@@ -23,14 +28,19 @@ def load_model_safe():
         print("📥 Attempting to load model...")
         model = keras.models.load_model(MODEL_PATH, compile=False)
         
-        # Recompile if needed
+        # Recompile with lower memory optimizer
         model.compile(
-            optimizer='adam',
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
             loss='categorical_crossentropy',
             metrics=['accuracy']
         )
         
         print("✅ Model loaded and compiled successfully!")
+        print(f"📊 Model size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
+        
+        # Clear memory
+        gc.collect()
+        
         return True
         
     except Exception as e:
@@ -46,12 +56,13 @@ def load_model_safe():
             )
             
             model.compile(
-                optimizer='adam',
+                optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                 loss='categorical_crossentropy',
                 metrics=['accuracy']
             )
             
             print("✅ Model loaded with alternative method!")
+            gc.collect()
             return True
             
         except Exception as e2:
@@ -59,6 +70,7 @@ def load_model_safe():
             return False
 
 # Load model on startup
+print("🚀 Starting application...")
 load_model_safe()
 
 class_names = [
@@ -95,7 +107,7 @@ def index():
 
     if request.method == "POST":
         if model is None:
-            error = "⚠️ Model not loaded. Please check server logs."
+            error = "⚠️ Model not loaded. Please check server logs or restart the service."
             return render_template(
                 "index.html",
                 prediction=None,
@@ -108,26 +120,40 @@ def index():
 
         if file and file.filename:
             try:
+                # Save uploaded file
                 img_path = os.path.join(UPLOAD_FOLDER, file.filename)
                 file.save(img_path)
 
+                # Load and preprocess image
                 img = image.load_img(img_path, target_size=(224, 224))
                 img_array = image.img_to_array(img) / 255.0
                 img_array = np.expand_dims(img_array, axis=0)
 
-                preds = model.predict(img_array, verbose=0)
+                # Predict with optimized settings
+                print("🔍 Making prediction...")
+                preds = model.predict(img_array, verbose=0, batch_size=1)
+                
                 max_prob = float(np.max(preds)) * 100
                 class_index = np.argmax(preds)
 
                 if max_prob < CONFIDENCE_THRESHOLD:
-                    prediction = "Unknown  ⚠️"
+                    prediction = "Unknown Person ⚠️"
                     confidence = round(max_prob, 2)
                 else:
                     prediction = class_names[class_index]
                     confidence = round(max_prob, 2)
+                
+                print(f"✅ Prediction: {prediction} ({confidence}%)")
+                
+                # Clean up memory
+                del img_array, preds
+                gc.collect()
+                
             except Exception as e:
                 error = f"Error processing image: {str(e)}"
-                print(f"Error: {error}")
+                print(f"❌ Error: {error}")
+        else:
+            error = "Please select an image file to upload."
 
     return render_template(
         "index.html",
@@ -141,8 +167,13 @@ def index():
 def health():
     """Health check endpoint"""
     status = "healthy" if model is not None else "model_not_loaded"
-    return {"status": status}, 200 if model else 503
+    model_loaded = model is not None
+    return {
+        "status": status,
+        "model_loaded": model_loaded
+    }, 200 if model else 503
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    print(f"🌐 Starting Flask on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
